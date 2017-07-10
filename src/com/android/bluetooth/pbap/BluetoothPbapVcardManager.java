@@ -127,6 +127,7 @@ public class BluetoothPbapVcardManager {
 
     private static final String CLAUSE_ONLY_VISIBLE = null;
     private static final int NEED_SEND_BODY = -1;
+    private static boolean isPullvCardEntry = false;
 
     public BluetoothPbapVcardManager(final Context context) {
         mContext = context;
@@ -895,6 +896,7 @@ public class BluetoothPbapVcardManager {
          * @return a cursor containing contact id of {@code offset} contact.
          */
         public static Cursor filterByOffset(Cursor contactCursor, int offset) {
+            isPullvCardEntry = true;
             return filterByRange(contactCursor, offset, offset);
         }
 
@@ -916,8 +918,9 @@ public class BluetoothPbapVcardManager {
                     Phone.CONTACT_ID
             });
 
-            if (startPoint == endPoint) {
+            if (startPoint == endPoint && isPullvCardEntry) {
                 int currentIndex = 0;
+                isPullvCardEntry = false;
                 while (contactCursor.moveToNext()) {
                     long currentContactId = contactCursor.getLong(contactIdColumn);
                     currentIndex++;
@@ -1325,11 +1328,18 @@ public class BluetoothPbapVcardManager {
         String attr [] = vCard.split(System.getProperty("line.separator"));
         String Vcard = "";
             for (int i=0; i < attr.length; i++) {
-                if(attr[i].startsWith("TEL")) {
-                    attr[i] = attr[i].replace("(", "");
-                    attr[i] = attr[i].replace(")", "");
-                    attr[i] = attr[i].replace("-", "");
-                    attr[i] = attr[i].replace(" ", "");
+                if (attr[i].startsWith("TEL")) {
+                    // To remove '-', '(', ')' or ' ' from TEL number
+                    if (V) Log.v(TAG, "vCard line: " + attr[i]);
+                    String vTag = attr[i].substring(0, attr[i].lastIndexOf(":") + 1);
+                    String vTel = attr[i].substring(attr[i].lastIndexOf(":") + 1, attr[i].length())
+                                          .replace("-", "")
+                                          .replace("(", "")
+                                          .replace(")", "")
+                                          .replace(" ", "");
+                    if (V) Log.v(TAG, "vCard Tel Tag:" + vTag + ", Number:" + vTel);
+                    if (vTag.length() + vTel.length() < attr[i].length())
+                        attr[i] = new StringBuilder().append(vTag).append(vTel).toString();
                 }
             }
 
